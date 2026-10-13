@@ -4,15 +4,15 @@ import sys
 from playwright.async_api import async_playwright
 
 async def main():
-    # n8n එකෙන් එවන Webhook URL එක GitHub environment එකෙන් ලබා ගැනීම
     n8n_webhook_url = os.environ.get("N8N_WEBHOOK_URL")
     
     async with async_playwright() as p:
-        # සර්වර් එකක් ඇතුළේ දුවන නිසා headless=True අනිවාර්ය වේ
+    
         browser = await p.chromium.launch(headless=True)
-        
-        # Clipboard එක කියවීමට අවශ්‍ය විශේෂ Cloud Permissions ලබා දීම
-        context = await browser.new_context(permissions=["clipboard-read", "clipboard-write"])
+        context = await browser.new_context(
+            viewport={"width": 1280, "height": 800},
+            permissions=["clipboard-read", "clipboard-write"]
+        )
         page = await context.new_page()
         
         print("1. Opening Mestri App live URL...")
@@ -24,41 +24,50 @@ async def main():
         await page.fill("input[type='password']", "admin123") 
         await page.click("button:has-text('Sign in'), input[type='submit']")
         
-        print("3. Navigating to Settings section...")
-       # Settings අයිකන් එක හෝ ලින්ක් එක වඩාත් නිවැරදිව හඳුනාගැනීම
-        await page.click("a[href*='settings'], button:has-text('Settings'), [aria-label*='settings']")
-
-        await page.wait_for_timeout(2000)
+        await page.wait_for_timeout(3000)
         
-        print("4. Triggering the Project Invite Link...")
-        invite_btn = "button:has-text('Copy Invite Link'), button:has-text('Copy Link'), text=Copy Invite Link"
-await page.wait_for_selector(invite_btn, timeout=15000)
-        await page.click(invite_btn)
-        print("✅ Click action executed on Copy Link button.")
+        print("3. Navigating to Settings section...")
+        settings_selector = "a[href*='settings'], button:has-text('Settings'), [aria-label*='settings']"
+        await page.wait_for_selector(settings_selector, timeout=10000)
+        await page.click(settings_selector)
+        
+        print("4. Waiting for Settings page content...")
+        await page.wait_for_timeout(3000)
+        
+        invite_btn = "button:has-text('Copy Invite Link'), button:has-text('Invite'), [class*='invite']"
+        
+        try:
+            print("5. Triggering the Project Invite Link...")
+            await page.wait_for_selector(invite_btn, timeout=10000)
+            await page.click(invite_btn)
+            print("✅ Click action executed on Copy Link button.")
+        except Exception as e:
+            print(f"⚠️ Direct button not found, trying general text fallback... Error: {e}")
+            await page.click("text=Copy Invite Link")
         
         await page.wait_for_timeout(1000)
         
-        # Playwright හරහා බ්‍රවුසර් එක ඇතුළෙන්ම Clipboard එක කියවීම
+        # Clipboard එක කියවීම
         copied_link = await page.evaluate("navigator.clipboard.readText()")
         print(f"\nCaptured Clipboard Value: {copied_link}\n")
         
         test_success = False
-        if "mestri-app.lovable.app" in copied_link:
+        if copied_link and "mestri-app.lovable.app" in copied_link:
             print("🔬 ASSERTION SUCCESS: Link structure is valid!")
             test_success = True
         else:
-            print("❌ ASSERTION FAILURE: Unexpected link template copied.")
+            print("❌ ASSERTION FAILURE: Unexpected or empty link template copied.")
             
         await page.screenshot(path="settings_verification.png")
         await browser.close()
         
-        # 5. ටෙස්ට් එක ඉවර වූ පසු n8n එකට ප්‍රතිඵලය Cloud එකෙන්ම POST කිරීම
+        # n8n වෙත ප්‍රතිඵල යැවීම
         if n8n_webhook_url:
             import requests
             payload = {
                 "status": "SUCCESS" if test_success else "FAILED",
-                "message": "Mestri App Live E2E Verification Passed cleanly." if test_success else "Automated test encountered a broken element.",
-                "copied_link": copied_link
+                "message": "Mestri App Live E2E Verification Passed." if test_success else "Automated test encountered a broken element.",
+                "copied_link": copied_link if copied_link else "None"
             }
             try:
                 requests.post(n8n_webhook_url, json=payload)
@@ -66,10 +75,10 @@ await page.wait_for_selector(invite_btn, timeout=15000)
             except Exception as e:
                 print(f"⚠️ Failed to send results to n8n: {e}")
         else:
-            print("ℹ️ N8N_WEBHOOK_URL not configured. Skipping notification.")
+            print("ℹ️ N8N_WEBHOOK_URL not configured.")
 
         if not test_success:
-            sys.exit(1) # ටෙස්ට් එක ෆේල් නම් GitHub Actions එකට එය දැනුම් දීම
+            sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main())
