@@ -16,7 +16,7 @@ async def main():
         page = await context.new_page()
         
         print("1. Opening Mestri App live URL...")
-        await page.goto("https://lovable.app")
+        await page.goto("https://mestri-app.lovable.app")
         await page.wait_for_timeout(2000)
         await page.screenshot(path="step1_landing_page.png")
         
