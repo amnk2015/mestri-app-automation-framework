@@ -25,7 +25,9 @@ async def main():
         await page.click("button:has-text('Sign in'), input[type='submit']")
         
         print("3. Navigating to Settings section...")
-        await page.click("text=Settings")
+       # Settings අයිකන් එක හෝ ලින්ක් එක වඩාත් නිවැරදිව හඳුනාගැනීම
+        await page.click("a[href*='settings'], button:has-text('Settings'), [aria-label*='settings']")
+
         await page.wait_for_timeout(2000)
         
         print("4. Triggering the Project Invite Link...")
