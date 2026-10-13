@@ -7,7 +7,6 @@ async def main():
     n8n_webhook_url = os.environ.get("N8N_WEBHOOK_URL")
     
     async with async_playwright() as p:
-        # Cloud සර්වර් එකට Desktop Screen එකක් ලබා දීම
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
@@ -17,48 +16,61 @@ async def main():
         
         print("1. Opening Mestri App live URL...")
         await page.goto("https://mestri-app.lovable.app")
-        await page.wait_for_timeout(2000)
-        await page.screenshot(path="step1_landing_page.png")
+        await page.wait_for_timeout(3000)
         
         print("2. Entering credentials...")
         try:
             await page.wait_for_selector("input[type='email']", timeout=5000)
             await page.fill("input[type='email']", "amnk.info@gmail.com") 
             await page.fill("input[type='password']", "admin123") 
-            await page.screenshot(path="step2_before_login.png")
-            await page.click("button:has-text('Sign in'), input[type='submit']")
+            await page.click("button:has-text('Sign in'), input[type='submit'], button[type='submit']")
+            print("✅ Sign in button clicked.")
         except Exception as e:
-            print(f"ℹ️ Login fields not found directly: {e}")
+            print(f"ℹ️ Login fields not visible, active session might exist: {e}")
         
-        # ලොගින් වූ පසු ඩෑෂ්බෝඩ් එක ලෝඩ් වන තෙක් රැඳී සිටීම
-        await page.wait_for_timeout(4000)
-        await page.screenshot(path="step3_dashboard.png")
+        await page.wait_for_timeout(5000)
         
         print("3. Navigating to Settings section...")
         try:
+            # වඩාත්ම පැහැදිලි Settings ලින්ක් එක සෙවීම
             await page.wait_for_selector("text=Settings", timeout=10000)
             await page.click("text=Settings")
+            print("✅ Successfully clicked Settings.")
         except Exception as e:
-            print(f"⚠️ Text=Settings failed, trying fallback CSS selector: {e}")
-            await page.click("a[href*='settings']")
+            print(f"❌ Failed to click Settings text: {e}")
+            # පිටුවේ දැනට පෙනෙන්නට තිබෙන සියලුම බටන් සහ ලින්ක්ස් ලොග් එකේ ප්‍රින්ට් කිරීම
+            buttons = await page.locator("button, a").all_inner_texts()
+            print(f"📊 Currently visible buttons/links on screen: {buttons}")
+            await browser.close()
+            sys.exit(1)
         
-        print("4. Waiting for Settings page content...")
         await page.wait_for_timeout(4000)
-        await page.screenshot(path="step4_settings_page.png")
         
-        invite_btn = "button:has-text('Copy Invite Link'), button:has-text('Invite'), [class*='invite']"
+        print("4. Inspecting Settings Page Elements...")
+        # පිටුවේ දැනට පවතින සියලුම බොත්තම් වල නම් ටර්මිනල් එකේ ප්‍රින්ට් කිරීම (Advanced Debugging)
+        all_buttons = await page.locator("button").all_inner_texts()
+        print(f"➔ [DEBUG] Found these buttons inside Settings: {all_buttons}")
         
-        try:
-            print("5. Triggering the Project Invite Link...")
-            await page.wait_for_selector(invite_btn, timeout=10000)
-            await page.click(invite_btn)
-            print("✅ Click action executed on Copy Link button.")
-        except Exception as e:
-            print(f"⚠️ Direct button not found, trying general text fallback... Error: {e}")
-            await page.click("text=Copy Invite Link")
+        print("5. Triggering the Project Invite Link...")
+        invite_success = False
         
-        await page.wait_for_timeout(1000)
-        await page.screenshot(path="step5_final_state.png")
+        # පිටුවේ තිබෙන බටන් එකින් එක පරීක්ෂා කර "Invite" හෝ "Link" අඩංගු එක ක්ලික් කිරීම
+        for btn_text in all_buttons:
+            if "invite" in btn_text.lower() or "link" in btn_text.lower() or "copy" in btn_text.lower():
+                print(f"🎯 Matching button found: '{btn_text}'. Attempting click...")
+                await page.click(f"button:has-text('{btn_text}')")
+                invite_success = True
+                break
+                
+        if not invite_success:
+            print("⚠️ Standard button matching failed. Trying direct text click as fallback...")
+            try:
+                await page.click("text=Copy Invite Link", timeout=5000)
+                invite_success = True
+            except Exception:
+                print("❌ Could not find any Invite Link button on this page.")
+        
+        await page.wait_for_timeout(2000)
         
         # Clipboard එක කියවීම
         copied_link = await page.evaluate("navigator.clipboard.readText()")
@@ -69,8 +81,9 @@ async def main():
             print("🔬 ASSERTION SUCCESS: Link structure is valid!")
             test_success = True
         else:
-            print("❌ ASSERTION FAILURE: Unexpected or empty link template copied.")
+            print("❌ ASSERTION FAILURE: Unexpected link template copied.")
             
+        await page.screenshot(path="settings_verification.png")
         await browser.close()
         
         # n8n වෙත ප්‍රතිඵල යැවීම
@@ -78,16 +91,13 @@ async def main():
             import requests
             payload = {
                 "status": "SUCCESS" if test_success else "FAILED",
-                "message": "Mestri App Live E2E Verification Passed." if test_success else "Automated test encountered a broken element.",
+                "message": "Mestri App Live E2E Verification Finished." if test_success else "Automated test failed.",
                 "copied_link": copied_link if copied_link else "None"
             }
             try:
                 requests.post(n8n_webhook_url, json=payload)
-                print("➡️ Test results securely sent back to n8n Cloud!")
-            except Exception as e:
-                print(f"⚠️ Failed to send results to n8n: {e}")
-        else:
-            print("ℹ️ N8N_WEBHOOK_URL not configured.")
+            except Exception:
+                pass
 
         if not test_success:
             sys.exit(1)
