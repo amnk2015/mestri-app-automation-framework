@@ -24,7 +24,7 @@ async def main():
         try:
             await page.wait_for_selector("input[type='email']", timeout=5000)
             await page.fill("input[type='email']", "amnk.info@gmail.com") 
-            await page.fill("input[type='password']", "password123") 
+            await page.fill("input[type='password']", "admin123") 
             await page.screenshot(path="step2_before_login.png")
             await page.click("button:has-text('Sign in'), input[type='submit']")
         except Exception as e:
