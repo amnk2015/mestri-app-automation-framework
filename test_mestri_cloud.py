@@ -24,23 +24,23 @@ async def main():
         try:
             await page.wait_for_selector("input[type='email']", timeout=5000)
             await page.fill("input[type='email']", "amnk.info@gmail.com") 
-            await page.fill("input[type='password']", "admin123") 
+            await page.fill("input[type='password']", "password123") 
             await page.screenshot(path="step2_before_login.png")
             await page.click("button:has-text('Sign in'), input[type='submit']")
         except Exception as e:
-            print(f"ℹ️ Login fields not found directly, maybe already logged in or custom UI: {e}")
+            print(f"ℹ️ Login fields not found directly: {e}")
         
         # ලොගින් වූ පසු ඩෑෂ්බෝඩ් එක ලෝඩ් වන තෙක් රැඳී සිටීම
         await page.wait_for_timeout(4000)
         await page.screenshot(path="step3_dashboard.png")
         
         print("3. Navigating to Settings section...")
-try:
-    await page.wait_for_selector("text=Settings", timeout=10000)
-    await page.click("text=Settings")
-except Exception as e:
-    print(f"⚠️ Text=Settings failed, trying fallback CSS selector: {e}")
-    await page.click("a[href*='settings']")
+        try:
+            await page.wait_for_selector("text=Settings", timeout=10000)
+            await page.click("text=Settings")
+        except Exception as e:
+            print(f"⚠️ Text=Settings failed, trying fallback CSS selector: {e}")
+            await page.click("a[href*='settings']")
         
         print("4. Waiting for Settings page content...")
         await page.wait_for_timeout(4000)
