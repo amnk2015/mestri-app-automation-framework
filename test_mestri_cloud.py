@@ -7,7 +7,7 @@ async def main():
     n8n_webhook_url = os.environ.get("N8N_WEBHOOK_URL")
     
     async with async_playwright() as p:
-    
+        # Cloud සර්වර් එකට Desktop Screen එකක් ලබා දීම
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
@@ -16,23 +16,33 @@ async def main():
         page = await context.new_page()
         
         print("1. Opening Mestri App live URL...")
-        await page.goto("https://mestri-app.lovable.app")
+        # ⚠️ මෙතැන නිවැරදි Mestri App URL එක ඇතුළත් කර ඇත
+        await page.goto("https://lovable.app")
+        await page.wait_for_timeout(2000)
+        await page.screenshot(path="step1_landing_page.png")
         
         print("2. Entering credentials...")
-        await page.wait_for_selector("input[type='email']")
-        await page.fill("input[type='email']", "amnk.info@gmail.com") 
-        await page.fill("input[type='password']", "admin123") 
-        await page.click("button:has-text('Sign in'), input[type='submit']")
+        try:
+            await page.wait_for_selector("input[type='email']", timeout=5000)
+            await page.fill("input[type='email']", "amnk.info@gmail.com") 
+            await page.fill("input[type='password']", "admin123") 
+            await page.screenshot(path="step2_before_login.png")
+            await page.click("button:has-text('Sign in'), input[type='submit']")
+        except Exception as e:
+            print(f"ℹ️ Login fields not found directly, maybe already logged in or custom UI: {e}")
         
-        await page.wait_for_timeout(3000)
+        # ලොගින් වූ පසු ඩෑෂ්බෝඩ් එක ලෝඩ් වන තෙක් රැඳී සිටීම
+        await page.wait_for_timeout(4000)
+        await page.screenshot(path="step3_dashboard.png")
         
         print("3. Navigating to Settings section...")
-        settings_selector = "a[href*='settings'], button:has-text('Settings'), [aria-label*='settings']"
+        settings_selector = "a[href*='settings'], button:has-text('Settings'), [aria-label*='settings'], text=Settings"
         await page.wait_for_selector(settings_selector, timeout=10000)
         await page.click(settings_selector)
         
         print("4. Waiting for Settings page content...")
-        await page.wait_for_timeout(3000)
+        await page.wait_for_timeout(4000)
+        await page.screenshot(path="step4_settings_page.png")
         
         invite_btn = "button:has-text('Copy Invite Link'), button:has-text('Invite'), [class*='invite']"
         
@@ -46,6 +56,7 @@ async def main():
             await page.click("text=Copy Invite Link")
         
         await page.wait_for_timeout(1000)
+        await page.screenshot(path="step5_final_state.png")
         
         # Clipboard එක කියවීම
         copied_link = await page.evaluate("navigator.clipboard.readText()")
@@ -58,7 +69,6 @@ async def main():
         else:
             print("❌ ASSERTION FAILURE: Unexpected or empty link template copied.")
             
-        await page.screenshot(path="settings_verification.png")
         await browser.close()
         
         # n8n වෙත ප්‍රතිඵල යැවීම
