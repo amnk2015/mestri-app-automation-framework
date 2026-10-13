@@ -31,8 +31,8 @@ async def main():
         await page.wait_for_timeout(2000)
         
         print("4. Triggering the Project Invite Link...")
-        invite_btn = "text=Copy Invite Link"
-        await page.wait_for_selector(invite_btn, timeout=5000)
+        invite_btn = "button:has-text('Copy Invite Link'), button:has-text('Copy Link'), text=Copy Invite Link"
+await page.wait_for_selector(invite_btn, timeout=15000)
         await page.click(invite_btn)
         print("✅ Click action executed on Copy Link button.")
         
