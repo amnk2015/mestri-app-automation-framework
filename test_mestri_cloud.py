@@ -36,9 +36,12 @@ async def main():
         await page.screenshot(path="step3_dashboard.png")
         
         print("3. Navigating to Settings section...")
-        settings_selector = "a[href*='settings'], button:has-text('Settings'), [aria-label*='settings'], text=Settings"
-        await page.wait_for_selector(settings_selector, timeout=10000)
-        await page.click(settings_selector)
+try:
+    await page.wait_for_selector("text=Settings", timeout=10000)
+    await page.click("text=Settings")
+except Exception as e:
+    print(f"⚠️ Text=Settings failed, trying fallback CSS selector: {e}")
+    await page.click("a[href*='settings']")
         
         print("4. Waiting for Settings page content...")
         await page.wait_for_timeout(4000)
