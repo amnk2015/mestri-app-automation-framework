@@ -1,0 +1,41 @@
+name: Mestri App E2E Automation
+
+on:
+  # n8n එකෙන් Webhook පණිවිඩයක් ආපු ගමන් මේ ටෙස්ට් එක දුවන්න පටන් ගනී
+  repository_dispatch:
+    types: [trigger-n8n-test]
+  # අවශ්‍ය නම් GitHub එක ඇතුළෙන්ම අපිට Run කරලා බලන්නත් පුළුවන්
+  workflow_dispatch:
+
+jobs:
+  playwright-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository code
+      uses: actions/checkout@v4
+
+    - name: Set up Python Environment
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install playwright requests
+        playwright install chromium
+
+    - name: Execute Automated Test Script
+      env:
+        # n8n එකෙන් එවන සක්‍රීය ලින්ක් එක සර්වර් එකේ සේව් කරගැනීම
+        N8N_WEBHOOK_URL: ${{ github.event.client_payload.n8n_url }}
+      run: |
+        python test_mestri_cloud.py
+
+    - name: Upload Test Screenshot (If failed or passed)
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: test-screenshots
+        path: settings_verification.png
