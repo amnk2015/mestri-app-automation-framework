@@ -4,7 +4,7 @@ import sys
 from playwright.async_api import async_playwright
 
 async def main():
-    n8n_webhook_url = os.environ.get("N8N_WEBHOOK_URL")
+    n8n_webhook_url = os.environ.get("https://flownish.app.n8n.cloud/webhook-test/36432a4e-437c-4047-9901-b6f67dec9334")
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
